@@ -67,7 +67,7 @@ void MatrixShiftAdd(float *base_mat,
  *
  * Output will be in NCHW format.
  */
-bool Ker2RowConvLayer(const float *in_data, const float *filters,
+bool Kn2RowConvLayer(const float *in_data, const float *filters,
                          const float *bias, TensorDim in_dim,
                          TensorDim filt_dim, int stride, int pad, int group,
                          float *output) {

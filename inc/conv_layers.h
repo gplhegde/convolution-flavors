@@ -24,7 +24,12 @@ bool CppConvnetConvLayer(const float *in_data, const float *filters,
                          TensorDim filt_dim, int stride, int pad, int group,
                          float *output);
 
-bool Ker2RowConvLayer(const float *in_data, const float *filters,
+bool Kn2RowConvLayer(const float *in_data, const float *filters,
+                         const float *bias, TensorDim in_dim,
+                         TensorDim filt_dim, int stride, int pad, int group,
+                         float *output);
+
+bool Kn2ColConvLayer(const float *in_data, const float *filters,
                          const float *bias, TensorDim in_dim,
                          TensorDim filt_dim, int stride, int pad, int group,
                          float *output);

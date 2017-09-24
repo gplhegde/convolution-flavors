@@ -16,6 +16,7 @@
 #include "common_types.h"
 #include "data_reshape.h"
 #include "utils.h"
+#include "conv_layers.h"
 
 bool Kn2ColConvLayer(const float *in_data, const float *filters,
                          const float *bias, TensorDim in_dim,
@@ -41,10 +42,6 @@ bool Kn2ColConvLayer(const float *in_data, const float *filters,
   NCHW2HWCN(filters, filt_dim.n, filt_dim.c, filt_dim.h, filt_dim.w,
             kkcm_filters);
 
-  // Reshape input from NCHW to NHWC
-  float *nhwc_input = malloc(TensorSize(in_dim) * sizeof(float));
-  NCHW2NHWC(in_data, in_dim.n, in_dim.c, in_dim.h, in_dim.w, nhwc_input);
-
   // Just for convenience
   int H = in_dim.h;
   int W = in_dim.w;
@@ -54,7 +51,7 @@ bool Kn2ColConvLayer(const float *in_data, const float *filters,
   // We need separate buffer because GEMM output will have width = H*W even
   // if there is no padding (pad = 0).
   float *gemm_output = malloc(out_dim.c * H * W * sizeof(float));
-
+  float *nchw_gemm_output = malloc(out_dim.c * H * W * sizeof(float));
   // Prefill output buffer with bias if present else set to zero.
   if (bias) {
     for (int m = 0; m < out_dim.c; ++m) {
@@ -73,26 +70,35 @@ bool Kn2ColConvLayer(const float *in_data, const float *filters,
   }
 
   for (int kr = 0; kr < filt_dim.h; kr++) {
-    int row_shift;
+    int row_shift = pad - kr;
     for (int kc = 0; kc < filt_dim.w; kc++) {
       int group_no = kr * filt_dim.w + kc;
-      int col_shift;
+      int col_shift = pad - kc;
       // Matrix dimensions - A -> mxk B -> kxn  C --> mxn
       int m = in_dim.h * in_dim.w;
       int k = filt_dim.c;
       int n = filt_dim.n;
 
-      cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-                  m, n, k, alpha, nhwc_input, k,
-                  kkcm_filters + group * filt_dim.c * filt_dim.n, n, beta,
+      // output is in H x W x C format.
+      cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans,
+                  m, n, k, alpha, in_data, m,
+                  kkcm_filters + group_no * filt_dim.c * filt_dim.n, n, beta,
                   gemm_output, n);
 
-      // TODO: shift and add
-      assert(0);
+      // convert to CxHxW format.
+      // FIXME: this will be slow. Need to find other ways :(
+      NHWC2NCHW(gemm_output, 1, filt_dim.n, H, W, nchw_gemm_output);
+
+      for (int omap = 0; omap < filt_dim.n; omap++) {
+        MatrixShiftAdd(output + omap * out_dim.h * out_dim.w,
+                        out_dim.h, out_dim.w,
+                        nchw_gemm_output + omap * H * W,
+                        H, W, row_shift, col_shift);
+      }
     }
   }
   free(kkcm_filters);
   free(gemm_output);
-  free(nhwc_input);
+  free(nchw_gemm_output);
   return true;
 }

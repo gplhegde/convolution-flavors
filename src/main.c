@@ -133,7 +133,7 @@ void TestKer2RowConvLayerKnownOutput() {
   const float *bias = conv_test_bias;
   float *output = malloc(out_dim.n * out_dim.c * out_dim.h * out_dim.w *
                          sizeof(float));
-  Ker2RowConvLayer(in_data, filters, bias, in_dim, filt_dim, stride, pad,
+  Kn2RowConvLayer(in_data, filters, bias, in_dim, filt_dim, stride, pad,
                         group, output);
 
   PrintTensor(output, out_dim);
@@ -141,11 +141,13 @@ void TestKer2RowConvLayerKnownOutput() {
   free(output);
 }
 
-void TestKer2RowConvLayer() {
-  // configurations
+void TestKer2FlavorConvLayer() {
+  // Configurations
+  // Enable kn2row or kn2col
+  bool kn2row = false;
   bool print_outputs = true;
   bool padding_en = true;
-  bool bias_en = false;
+  bool bias_en = true;
 
   int ker_size = 3;
   int group = 1;
@@ -184,11 +186,18 @@ void TestKer2RowConvLayer() {
       ker_size, group,
       pad, stride, bias_en, ref_output);
 
-  Ker2RowConvLayer(in_data, filters, bias, in_dim, filt_dim, stride, pad,
-                        group, output);
+  if (kn2row) {
+    printf("Using Kn2Row convolution\n");
+    Kn2RowConvLayer(in_data, filters, bias, in_dim, filt_dim, stride, pad,
+                     group, output);
+  } else {
+    printf("Using Kn2Col convolution\n");
+    Kn2ColConvLayer(in_data, filters, bias, in_dim, filt_dim, stride, pad,
+                         group, output);
+  }
 
   if (print_outputs) {
-    printf("Output of kr2row method\n");
+    printf("Output of kn2xyz method\n");
     PrintTensor(output, out_dim);
     printf("Output of reference implementation\n");
     PrintTensor(ref_output, out_dim);
@@ -204,6 +213,7 @@ void TestKer2RowConvLayer() {
   free(filters);
   free(output);
 }
+
 
 void TestMatShiftAdd() {
   int mat_h = 5;
@@ -228,7 +238,7 @@ void TestMatShiftAdd() {
 int main(void) {
   //TestLayoutConverters();
   //TestKer2RowConvLayerKnownOutput();
-  TestKer2RowConvLayer();
+  TestKer2FlavorConvLayer();
   //TestMatShiftAdd();
   //TestCppConvnetConvLayer();
 

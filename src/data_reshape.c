@@ -95,3 +95,24 @@ void NCHW2CHWN(const float *nchw_data, int N, int C, int H, int W,
     }
   }
 }
+
+void NHWC2NCHW(const float *nhwc_data, int N, int C, int H, int W,
+               float *nchw_data) {
+  for (int n = 0; n < N; ++n) {
+    int in_batch_offset = n * H * W * C;
+    int out_batch_offset = n * C * H * W;
+    for(int h = 0; h < H; ++h) {
+      int in_row_offset = in_batch_offset + h * W * C;
+      int out_row_offset = out_batch_offset + h * W;
+      for (int w = 0; w < W; ++w) {
+        int in_col_offset = in_row_offset + w * C;
+        int out_col_offset = out_row_offset + w;
+        for (int c = 0; c < C; ++c) {
+          int in_addr = in_col_offset + c;
+          int out_addr = out_col_offset + c * H * W;
+          nchw_data[out_addr] = nhwc_data[in_addr];
+        }
+      }
+    }
+  }
+}
