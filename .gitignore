@@ -1,0 +1,7 @@
+*.o
+./obj
+test_app
+*.swp
+.cproject
+.project
+.settings
