@@ -92,6 +92,7 @@ static void CppConvnetIm2Row(float* stacked, const float* data, int numPatchesX,
   we tend to access spatially adiacent elements
   in the input image, particulary for small strides.
   */
+  float *im2row = stacked;
   for (int row = 0; row < numRows; ++row) {
     /*
     Get the patch offset corresponding to this row of the stacked
@@ -163,11 +164,11 @@ static void CppConvnetIm2Row(float* stacked, const float* data, int numPatchesX,
     }
   }
 
-  //PrintMat("im2row", im2row, numRows, numPatchesX*numPatchesY);
+  PrintMat("im2row", im2row, 1, numRows*numPatchesX*numPatchesY, CblasRowMajor);
   //PrintMat("im2row", im2row, numPatchesX*numPatchesY, numRows);
 }
 
-
+// Not working for group != 1
 bool CppConvnetConvLayer(const float *in_data, const float *filters,
                          const float *bias, TensorDim in_dim,
                          TensorDim filt_dim, int stride, int pad, int group,
@@ -191,7 +192,7 @@ bool CppConvnetConvLayer(const float *in_data, const float *filters,
   if (fullyConnectedMode){
     return false;
   }
-
+  PrintTensor(in_data, in_dim);
   int numFiltersPerGroup = filt_dim.n / numGroups; // M
   int numOutputPixels = out_dim.w * out_dim.h; // H*W
   int filtersVolume = filt_dim.w * filt_dim.h * filt_dim.c; // K*K*C

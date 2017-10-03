@@ -70,29 +70,67 @@ static const float conv_test_ref_out[] = {
 };
 
 void TestCppConvnetConvLayer() {
-  TensorDim out_dim;
-  TensorDim in_dim = {conv_test_batch, conv_test_in_c,
-      conv_test_in_h, conv_test_in_w};
-  TensorDim filt_dim = {conv_test_out_c, conv_test_in_c, conv_test_k,
-      conv_test_k};
-  int pad = 0;//conv_test_k / 2;
+  bool print_outputs = false;
+  bool padding_en = true;
+  bool bias_en = true;
+
+  int ker_size = 3;
+  int group = 2;
   int stride = 1;
-  int group = 1;
+  int N = 1;
+  int C = 2;
+  int H = 5;
+  int W = 5;
+  int M = 4;
+  int pad = 0;
+  if (padding_en) {
+    pad = ker_size / 2;
+  }
+
+  TensorDim in_dim = {N, C, H, W};
+  TensorDim filt_dim = {M, C, ker_size, ker_size};
+  TensorDim out_dim;
   out_dim.w = (in_dim.w + (pad + pad) - filt_dim.w) / stride + 1;
   out_dim.h = (in_dim.h + (pad + pad) - filt_dim.h) / stride + 1;
-  out_dim.c = conv_test_out_c;
+  out_dim.c = M;
   out_dim.n = in_dim.n;
-  const float *in_data = conv_test_in_data;
-  const float *filters = conv_test_filter;
-  const float *bias = conv_test_bias;
+  float *in_data = malloc(TensorSize(in_dim) * sizeof(float));
+  float *filters = malloc(TensorSize(filt_dim) * sizeof(float));
+  float *bias = malloc(out_dim.c * sizeof(float));
+  float *output = malloc(TensorSize(out_dim) * sizeof(float));
+  float *ref_output = malloc(TensorSize(out_dim) * sizeof(float));
+  RandInitF32(in_data, TensorSize(in_dim));
+  RandInitF32(filters, TensorSize(filt_dim));
+  if (bias_en) {
+    RandInitF32(bias, out_dim.c);
+  }
 
-  float *output = malloc(out_dim.n*out_dim.c*out_dim.h*out_dim.w*sizeof(float));
+  RefConv2dF32(in_data, filters,
+      bias, in_dim.c, in_dim.h,
+      in_dim.w, out_dim.c, out_dim.h, out_dim.w,
+      ker_size, group,
+      pad, stride, bias_en, ref_output);
 
-  PrintTensor(in_data, in_dim);
   CppConvnetConvLayer(in_data, filters, bias,
                            in_dim, filt_dim, stride,
                            pad, group, output);
-  //PrintTensor(output, out_dim);
+
+  if (print_outputs) {
+    printf("Output of kn2xyz method\n");
+    PrintTensor(output, out_dim);
+    printf("Output of reference implementation\n");
+    PrintTensor(ref_output, out_dim);
+  }
+  if (TensorCompare(output, ref_output, out_dim)) {
+    printf("PASS\n");
+  } else {
+    printf("FAIL\n");
+  }
+  free(in_data);
+  free(bias);
+  free(ref_output);
+  free(filters);
+  free(output);
 }
 
 void TestLayoutConverters() {
@@ -144,7 +182,7 @@ void TestKer2RowConvLayerKnownOutput() {
 void TestKer2FlavorConvLayer() {
   // Configurations
   // Enable kn2row or kn2col
-  bool kn2row = false;
+  bool kn2row = true;
   bool print_outputs = true;
   bool padding_en = true;
   bool bias_en = true;
@@ -214,7 +252,79 @@ void TestKer2FlavorConvLayer() {
   free(output);
 }
 
+void TestIm2FlavorConvLayer() {
+  // Configurations
+  // Enable kn2row or kn2col
+  bool im2col = true;
+  bool print_outputs = true;
+  bool padding_en = true;
+  bool bias_en = false;
 
+  int ker_size = 3;
+  int group = 3;
+  int stride = 1;
+  int N = 1;
+  int C = 3;
+  int H = 5;
+  int W = 5;
+  int M = 9;
+  int pad = 0;
+  if (padding_en) {
+    pad = ker_size / 2;
+  }
+
+  TensorDim in_dim = {N, C, H, W};
+  TensorDim filt_dim = {M, C, ker_size, ker_size};
+  TensorDim out_dim;
+  out_dim.w = (in_dim.w + (pad + pad) - filt_dim.w) / stride + 1;
+  out_dim.h = (in_dim.h + (pad + pad) - filt_dim.h) / stride + 1;
+  out_dim.c = M;
+  out_dim.n = in_dim.n;
+  float *in_data = malloc(TensorSize(in_dim) * sizeof(float));
+  float *filters = malloc(TensorSize(filt_dim) * sizeof(float));
+  float *bias = malloc(out_dim.c * sizeof(float));
+  float *output = malloc(TensorSize(out_dim) * sizeof(float));
+  float *ref_output = malloc(TensorSize(out_dim) * sizeof(float));
+  float *spad = malloc(out_dim.h * out_dim.w * in_dim.c *
+                       filt_dim.w * filt_dim.h);
+  RandInitF32(in_data, TensorSize(in_dim));
+  RandInitF32(filters, TensorSize(filt_dim));
+  if (bias_en) {
+    RandInitF32(bias, out_dim.c);
+  }
+
+  RefConv2dF32(in_data, filters,
+      bias, in_dim.c, in_dim.h,
+      in_dim.w, out_dim.c, out_dim.h, out_dim.w,
+      ker_size, group,
+      pad, stride, bias_en, ref_output);
+
+  if (im2col) {
+    printf("Using im2col convolution\n");
+    Im2ColConvLayer(in_data, filters, bias, spad, in_dim, out_dim, ker_size,
+                    group, pad, stride, bias_en, output);
+  } else {
+
+  }
+
+  if (print_outputs) {
+    printf("Output of im2xyz method\n");
+    PrintTensor(output, out_dim);
+    printf("Output of reference implementation\n");
+    PrintTensor(ref_output, out_dim);
+  }
+  if (TensorCompare(output, ref_output, out_dim)) {
+    printf("PASS\n");
+  } else {
+    printf("FAIL\n");
+  }
+  free(in_data);
+  free(bias);
+  free(ref_output);
+  free(filters);
+  free(output);
+  free(spad);
+}
 void TestMatShiftAdd() {
   int mat_h = 5;
   int mat_w = 5;
@@ -238,10 +348,10 @@ void TestMatShiftAdd() {
 int main(void) {
   //TestLayoutConverters();
   //TestKer2RowConvLayerKnownOutput();
-  TestKer2FlavorConvLayer();
+  //TestKer2FlavorConvLayer();
   //TestMatShiftAdd();
   //TestCppConvnetConvLayer();
 
-
+  TestIm2FlavorConvLayer();
   return 0;
 }

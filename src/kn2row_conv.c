@@ -16,7 +16,13 @@
 #include "data_reshape.h"
 #include "utils.h"
 
-
+//
+// col_shift : +ve --> shift left overlap mat , -ve --> shift right overlap mat
+// or shift left base mat and keep overlap mat as it is.
+//
+//
+// row_shift : +ve (coeff is down the center coeff) --> shift up overlap mat ,
+// -ve --> shift down overlap mat or shift up the base mat.
 void MatrixShiftAdd(float *base_mat,
                      int base_no_rows, int base_no_cols,
                      float *overlap_mat,
@@ -43,10 +49,11 @@ void MatrixShiftAdd(float *base_mat,
   } else {
     rows_to_add = ov_no_rows - abs(row_shift);
     cols_to_add = ov_no_cols - abs(col_shift);
-    base_row_start = row_shift < 0? 0 : row_shift;
-    base_col_start = col_shift < 0? 0 : col_shift;
-    ov_row_start = row_shift < 0? -row_shift : 0;
-    ov_col_start = col_shift < 0? -col_shift : 0;
+
+    ov_col_start = col_shift > 0? col_shift : 0;
+    ov_row_start = row_shift > 0? row_shift : 0;
+    base_row_start = row_shift < 0? -row_shift : 0;
+    base_col_start = col_shift < 0? -col_shift : 0;
   }
 
   for (int r = 0; r < rows_to_add; ++r) {
@@ -120,10 +127,10 @@ bool Kn2RowConvLayer(const float *in_data, const float *filters,
   }
 
   for (int kr = 0; kr < filt_dim.h; kr++) {
-    int row_shift = pad - kr;
+    int row_shift = kr - filt_dim.h / 2;
     for (int kc = 0; kc < filt_dim.w; kc++) {
       int group_no = kr * filt_dim.w + kc;
-      int col_shift = pad - kc;
+      int col_shift = kc - filt_dim.w / 2;
       // Matrix dimensions - A -> mxk B -> kxn  C --> mxn
       int m = filt_dim.n;
       int k = filt_dim.c;

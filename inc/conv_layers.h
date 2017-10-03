@@ -34,6 +34,11 @@ bool Kn2ColConvLayer(const float *in_data, const float *filters,
                          TensorDim filt_dim, int stride, int pad, int group,
                          float *output);
 
+void Im2ColConvLayer(const float *input, const float *weight,
+    const float *bias, float *scratchpad, const TensorDim in_dim,
+    const TensorDim out_dim, const int ker_size, const int group,
+    const int pad, const int stride, const int bias_en, float *output);
+
 void MatrixShiftAdd(float *base_mat,
                      int base_no_rows, int base_no_cols,
                      float *overlap_mat,
