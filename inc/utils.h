@@ -15,6 +15,7 @@
 
 void PrintMat(char *name, const float *ptr, int H, int W, CBLAS_LAYOUT layout);
 void RandInitF32(float *p_data, int N);
+void SeqInitF32(float *p_data, int N);
 void PrintTensor(const float *data, TensorDim dim);
 int TensorSize(TensorDim dim);
 bool TensorCompare(const float *t1, const float *t2, TensorDim dim);

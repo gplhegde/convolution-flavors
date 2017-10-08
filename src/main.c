@@ -71,14 +71,14 @@ static const float conv_test_ref_out[] = {
 
 void TestCppConvnetConvLayer() {
   bool print_outputs = false;
-  bool padding_en = true;
-  bool bias_en = true;
+  bool padding_en = false;
+  bool bias_en = false;
 
   int ker_size = 3;
   int group = 2;
   int stride = 1;
   int N = 1;
-  int C = 2;
+  int C = 4;
   int H = 5;
   int W = 5;
   int M = 4;
@@ -96,11 +96,14 @@ void TestCppConvnetConvLayer() {
   out_dim.n = in_dim.n;
   float *in_data = malloc(TensorSize(in_dim) * sizeof(float));
   float *filters = malloc(TensorSize(filt_dim) * sizeof(float));
-  float *bias = malloc(out_dim.c * sizeof(float));
+  float *bias = NULL;
+  if (bias_en) {
+    bias = malloc(out_dim.c * sizeof(float));
+  }
   float *output = malloc(TensorSize(out_dim) * sizeof(float));
   float *ref_output = malloc(TensorSize(out_dim) * sizeof(float));
-  RandInitF32(in_data, TensorSize(in_dim));
-  RandInitF32(filters, TensorSize(filt_dim));
+  SeqInitF32(in_data, TensorSize(in_dim));
+  SeqInitF32(filters, TensorSize(filt_dim));
   if (bias_en) {
     RandInitF32(bias, out_dim.c);
   }
@@ -350,8 +353,9 @@ int main(void) {
   //TestKer2RowConvLayerKnownOutput();
   //TestKer2FlavorConvLayer();
   //TestMatShiftAdd();
-  //TestCppConvnetConvLayer();
+  TestCppConvnetConvLayer();
 
-  TestIm2FlavorConvLayer();
+  //TestIm2FlavorConvLayer();
+  //WinoGradConvHook();
   return 0;
 }

@@ -44,4 +44,6 @@ void MatrixShiftAdd(float *base_mat,
                      float *overlap_mat,
                      int ov_no_rows, int ov_no_cols,
                      int row_shift, int col_shift);
+
+void WinoGradConvHook();
 #endif  // INC_CONV_LAYERS_H_

@@ -93,16 +93,17 @@ static void CppConvnetIm2Row(float* stacked, const float* data, int numPatchesX,
   in the input image, particulary for small strides.
   */
   float *im2row = stacked;
+  // numRows = KxKXC, numPatchesX = H, numPatchesY = W
   for (int row = 0; row < numRows; ++row) {
     /*
     Get the patch offset corresponding to this row of the stacked
     image.
     */
     int u = row;
-    int v = u / filter_dim.h;
-    int z = v / filter_dim.w;
-    u %= filter_dim.h;
-    v %= filter_dim.w;
+    int v = u / filter_dim.w;
+    int z = v / filter_dim.h; // filter channel no
+    u %= filter_dim.w; // filter col no
+    v %= filter_dim.h; // filter row no
 
     /*
     Filling this row amounts to visiting all the pixels in the input
@@ -132,8 +133,8 @@ static void CppConvnetIm2Row(float* stacked, const float* data, int numPatchesX,
 
     int x0 = min(numPatchesX, (int)ceil_divide(pad - u, stride));
     int y0 = min(numPatchesY, (int)ceil_divide(pad - v, stride));
-    int x1 = min(numPatchesX, (int)floor_divide(input_dim.h - 1 + pad - u, stride) + 1);
-    int y1 = min(numPatchesY, (int)floor_divide(input_dim.w - 1 + pad - v, stride) + 1);
+    int x1 = min(numPatchesX, (int)floor_divide(input_dim.w - 1 + pad - u, stride) + 1);
+    int y1 = min(numPatchesY, (int)floor_divide(input_dim.h - 1 + pad - v, stride) + 1);
     int x;
     int y;
 
@@ -148,7 +149,7 @@ static void CppConvnetIm2Row(float* stacked, const float* data, int numPatchesX,
       }
       int y_data = y * stride + v - pad;
       int x_data = x * stride + u - pad;
-      float const * b = data + (z * input_dim.w + y_data) * input_dim.h + x_data;
+      float const * b = data + (z * input_dim.h + y_data) * input_dim.w + x_data;
       for (; x < x1; ++x) {
         *stacked++ = *b;
         b += stride;
@@ -165,7 +166,7 @@ static void CppConvnetIm2Row(float* stacked, const float* data, int numPatchesX,
   }
 
   PrintMat("im2row", im2row, 1, numRows*numPatchesX*numPatchesY, CblasRowMajor);
-  //PrintMat("im2row", im2row, numPatchesX*numPatchesY, numRows);
+
 }
 
 // Not working for group != 1
@@ -183,7 +184,7 @@ bool CppConvnetConvLayer(const float *in_data, const float *filters,
   out_dim.n = in_dim.n;
   int m_biasDims = out_dim.c;
 
-  int numGroups = in_dim.c / filt_dim.c;// assume = 1
+  //int numGroups = in_dim.c / filt_dim.c;// assume = 1
   bool fullyConnectedMode = (out_dim.w == 1 &&
       out_dim.h == 1 &&
     stride == 1 &&
@@ -192,11 +193,15 @@ bool CppConvnetConvLayer(const float *in_data, const float *filters,
   if (fullyConnectedMode){
     return false;
   }
+  printf("---------Inputs------\n");
   PrintTensor(in_data, in_dim);
-  int numFiltersPerGroup = filt_dim.n / numGroups; // M
+  printf("---------------------\n");
+  printf("-------Filters-------\n");
+  PrintTensor(filters, filt_dim);
+  int numFiltersPerGroup = filt_dim.n / group; // M
   int numOutputPixels = out_dim.w * out_dim.h; // H*W
-  int filtersVolume = filt_dim.w * filt_dim.h * filt_dim.c; // K*K*C
-  int tempVolume = numOutputPixels * filtersVolume * numGroups; // H*W*K*K*C --> looks to be size of im2row buffer
+  int filtersVolume = filt_dim.w * filt_dim.h * filt_dim.c/group; // K*K*C
+  int tempVolume = numOutputPixels * filtersVolume * group; // H*W*K*K*C --> looks to be size of im2row buffer
   float* tempMemory = malloc( sizeof(float) *tempVolume); // im2row buffer?
   float* tempOnes = malloc(sizeof(float)*numOutputPixels); // buffer of size H*W all set to 1
   for (int i = 0; i < numOutputPixels; i++) tempOnes[i] = 1.0;
@@ -206,10 +211,10 @@ bool CppConvnetConvLayer(const float *in_data, const float *filters,
     int dataOffset = (in_dim.w * in_dim.h * in_dim.c) * image;// pointer to batch of images
     int outputOffset = (out_dim.w * out_dim.h * out_dim.c) * image;// pointer to batch of output maps.
     //under sample
-    CppConvnetIm2Row(tempMemory, in_data + dataOffset, out_dim.h, out_dim.w,
-                     filtersVolume, in_dim, filt_dim, stride, pad);
+    CppConvnetIm2Row(tempMemory, in_data + dataOffset, out_dim.w, out_dim.h,
+                     filtersVolume*group, in_dim, filt_dim, stride, pad);
 
-    for (int g = 0; g < numGroups; ++g) {
+    for (int g = 0; g < group; ++g) {
       int filterGrpOffset = filtersVolume * numFiltersPerGroup * g;//0
       int tempGrpOffset = numOutputPixels * filtersVolume * g;//0
       int outputGrpOffset = numOutputPixels * numFiltersPerGroup * g;//0
@@ -217,11 +222,12 @@ bool CppConvnetConvLayer(const float *in_data, const float *filters,
       float beta = outputMult;
       //convolution
       // A -> MxK B-> KxN
-      PrintMat("im2row", tempMemory, numOutputPixels, filtersVolume,
-               CblasColMajor);
+      PrintMat("im2row", tempMemory + tempGrpOffset, numOutputPixels, filtersVolume, CblasColMajor);
+      PrintMat("filters", filters + filterGrpOffset, filtersVolume, numFiltersPerGroup, CblasColMajor);
+      //PrintMat("im2row", tempMemory, 1, filtersVolume* numOutputPixels, CblasColMajor);
       cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,
-                  numOutputPixels/*M*/,
-                  numFiltersPerGroup/*N*/, filtersVolume/*K*/,
+                  numOutputPixels/*m = HxW*/,
+                  numFiltersPerGroup/*n = M*/, filtersVolume/*k = KxKxC/group*/,
                   alpha, tempMemory + tempGrpOffset, /*A*/
                   numOutputPixels/*lda*/,
                   filters + filterGrpOffset, // B

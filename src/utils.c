@@ -65,6 +65,13 @@ void RandInitF32(float *p_data, int N) {
     }
 }
 
+void SeqInitF32(float *p_data, int N) {
+    int k;
+    for (k = 0; k < N; k++) {
+        p_data[k] = k;
+    }
+}
+
 bool TensorCompare(const float *t1, const float *t2, TensorDim dim) {
   for (int n = 0; n < dim.n; ++n) {
     for (int c = 0; c < dim.c; c++) {
