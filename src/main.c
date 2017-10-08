@@ -353,9 +353,9 @@ int main(void) {
   //TestKer2RowConvLayerKnownOutput();
   //TestKer2FlavorConvLayer();
   //TestMatShiftAdd();
-  TestCppConvnetConvLayer();
+  //TestCppConvnetConvLayer();
 
   //TestIm2FlavorConvLayer();
-  //WinoGradConvHook();
+  WinoGradConvHook();
   return 0;
 }

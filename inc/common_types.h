@@ -10,9 +10,9 @@
 
 #ifndef INC_COMMON_TYPES_H_
 #define INC_COMMON_TYPES_H_
-#define K_VEC (8)
+#define K_VEC (2)
 #define Q_VEC (4)
-#define C_VEC (4)
+#define C_VEC (3)
 #define S_VEC (3)
 #define W_VEC (Q_VEC + S_VEC - 1)
 

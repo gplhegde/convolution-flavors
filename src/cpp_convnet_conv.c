@@ -60,6 +60,7 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #include "common_types.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <cblas.h>
 #include "utils.h"
 
